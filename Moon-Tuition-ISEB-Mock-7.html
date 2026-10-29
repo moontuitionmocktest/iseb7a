@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moon Tuition ISEB Mock Test 3</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f5f5f5}
+.header{background:#1e3a8a;color:white;padding:12px 20px;display:flex;justify-content:space-between;align-items:center}
+.container{max-width:900px;margin:20px auto;background:white;padding:24px;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+button{background:#2563eb;color:white;border:none;padding:10px 18px;border-radius:8px;cursor:pointer;font-size:16px}
+button:hover{background:#1d4ed8}
+.option{border:1px solid #d1d5db;padding:12px;margin:8px 0;border-radius:8px;cursor:pointer}
+.option:hover{background:#f3f4f6}
+.option.selected{background:#dbeafe;border-color:#2563eb}
+.progress{height:6px;background:#e5e7eb;border-radius:3px;margin:10px 0}
+.progress-bar{height:100%;background:#2563eb;border-radius:3px}
+.timer{font-weight:bold;color:#dc2626}
+.hidden{display:none}
+.correct{background:#dcfce7;border-color:#16a34a}
+.wrong{background:#fee2e2;border-color:#dc2626}
+table{width:100%;border-collapse:collapse;margin-top:16px}
+th,td{border:1px solid #e5e7eb;padding:8px;text-align:left}
+th{background:#f3f4f6}
+</style>
+</head>
+<body>
+<div class="header">
+  <div style="font-weight:bold;font-size:18px">Moon Tuition – Pack 7</div>
+  <div id="userInfo" class="hidden">
+    <button onclick="goHome()" style="margin-right:8px;padding:6px 12px;font-size:14px;background:#4b5563">Home</button>
+    <button onclick="showAdmin()" style="margin-right:8px;padding:6px 12px;font-size:14px;background:#7c3aed">Admin</button>
+    <button onclick="showLeaderboard()" style="margin-right:8px;padding:6px 12px;font-size:14px;background:#059669">Ranking</button>
+    Hi, <span id="userName"></span>
+    <button onclick="logout()" style="margin-left:12px;padding:6px 12px;font-size:14px">Logout</button>
+  </div>
+</div>
+<div id="loginScreen" class="container" style="max-width:340px;padding:20px">
+  <h2 style="margin:0 0 14px 0;font-size:18px">ISEB Pre-Test Mock 7</h2>
+  <input id="username" placeholder="Username" style="width:100%;padding:7px 10px;margin:3px 0;border:1px solid #d1d5db;border-radius:6px;font-size:15px">
+  <input id="password" type="password" placeholder="Password" style="width:100%;padding:7px 10px;margin:3px 0;border:1px solid #d1d5db;border-radius:6px;font-size:15px">
+  <button onclick="login()" style="width:100%;margin-top:8px;padding:7px">Login</button>
+  <div id="loginError" style="color:#dc2626;margin-top:6px;font-size:13px"></div>
+</div>
+<div id="homeScreen" class="container hidden">
+  <h2>Select a subject</h2>
+  <button onclick="startTest('maths')" style="width:100%;margin:8px 0">Maths (30 questions, 15 min)</button>
+  <button onclick="startTest('english')" style="width:100%;margin:8px 0">English (30 questions, 15 min)</button>
+  <button onclick="startTest('vr')" style="width:100%;margin:8px 0">Verbal Reasoning (30 questions, 15 min)</button>
+  <button onclick="startTest('nvr')" style="width:100%;margin:8px 0">Non-Verbal Reasoning (30 questions, 15 min)</button>
+  <button onclick="showLeaderboard()" style="width:100%;margin:8px 0;background:#059669">View Scores</button>
+  <div id="adminPanel" class="hidden" style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px">
+    <h3>Admin: Create Student</h3>
+    <input id="newUser" placeholder="New username" style="width:100%;padding:8px;margin:4px 0;border:1px solid #d1d5db;border-radius:6px">
+    <input id="newPass" placeholder="New password" style="width:100%;padding:8px;margin:4px 0;border:1px solid #d1d5db;border-radius:6px">
+    <button onclick="createStudent()" style="width:100%">Create Account</button>
+    <h4 style="margin-top:16px">Existing Students</h4>
+    <div id="studentList" style="font-size:14px;color:#4b5563"></div>
+  </div>
+</div>
+<div id="testScreen" class="container hidden">
+  <div style="display:flex;justify-content:space-between"><b id="subjectTitle"></b><span class="timer" id="timer">15:00</span></div>
+  <div style="margin:8px 0"><span id="qNum">1</span> / 30</div>
+  <div class="progress"><div class="progress-bar" id="progressBar" style="width:3.33%"></div></div>
+  <div id="questionText" style="margin:16px 0;font-size:17px"></div>
+  <div id="options"></div>
+  <button id="nextBtn" onclick="nextQuestion()" style="margin-top:16px">Next</button>
+</div>
+<div id="reviewScreen" class="container hidden">
+  <h2 id="reviewTitle"></h2>
+  <div id="scoreDisplay" style="font-size:18px;margin:12px 0"></div>
+  <div id="reviewContent"></div>
+  <button onclick="goHome()" style="margin-top:16px">Back to Home</button>
+</div>
+<div id="leaderboardScreen" class="container hidden">
+  <h2>Scores Ranking</h2>
+  <table id="leaderboardTable"><thead><tr><th>Rank</th><th>Student</th><th>Maths</th><th>English</th><th>VR</th><th>NVR</th><th>Total</th></tr></thead><tbody></tbody></table>
+  <button onclick="goHome()" style="margin-top:16px">Back</button>
+</div>
+<script>
+// Force-create demo and known accounts for Pack 7
+try {
+  let s = JSON.parse(localStorage.getItem('students7') || '{}');
+  const accounts = {
+    "demo1": "demo1",
+    "demo2": "demo2",
+    "demo3": "demo3",
+    "zihao": "zihao",
+    "ignata": "ignata",
+    "xiran": "xiran",
+    "elaineli": "elaineli",
+    "student": "student",
+    "test": "test"
+  };
+  Object.assign(s, accounts);
+  localStorage.setItem('students7', JSON.stringify(s));
+} catch(e) { console.error("Seed failed", e); }
+
+const ADMIN = {user:"moonzhu",pass:"moon2026@"};
+let currentUser = null;
+let currentTest = null;
+let currentQ = 0;
+let answers = [];
+let timerInterval = null;
+let timeLeft = 900;
+
+const mathsQ = [
+  {q:"A pen costs £3.50. What is the cost of 8 pens?", opts:['£24', '£26', '£28', '£30', '£32'], a:2},
+  {q:"What is 25% of 240?", opts:['50', '55', '60', '65', '70'], a:2},
+  {q:"A rectangle has length 14 cm and width 6 cm. What is its perimeter?", opts:['36 cm', '40 cm', '44 cm', '48 cm', '52 cm'], a:1},
+  {q:"Simplify 4/5 - 1/4", opts:['11/20', '3/5', '1/2', '7/20', '9/20'], a:0},
+  {q:"A cyclist travels 45 km in 1.5 hours. What is the average speed?", opts:['25 km/h', '30 km/h', '35 km/h', '40 km/h', '45 km/h'], a:1},
+  {q:"What is the next number: 6, 11, 21, 41, ?", opts:['61', '71', '81', '91', '101'], a:2},
+  {q:"A coat is reduced by 30%. The original price was £70. What is the sale price?", opts:['£45', '£48', '£49', '£52', '£55'], a:2},
+  {q:"How many minutes are in 2.25 hours?", opts:['120', '130', '135', '140', '150'], a:2},
+  {q:"The area of a square is 64 cm². What is the length of one side?", opts:['6 cm', '7 cm', '8 cm', '9 cm', '10 cm'], a:2},
+  {q:"A bag has 7 red, 5 blue and 3 green marbles. What is the probability of picking a green marble?", opts:['1/5', '1/4', '3/15', '5/15', '7/15'], a:2},
+  {q:"Calculate 2/3 of 180.", opts:['100', '110', '120', '130', '140'], a:2},
+  {q:"A triangle has angles 55°, 65° and x. What is x?", opts:['50°', '55°', '60°', '65°', '70°'], a:2},
+  {q:"What is 1.8 × 2.5?", opts:['4.0', '4.2', '4.5', '4.8', '5.0'], a:2},
+  {q:"A car uses 7 litres of fuel for 100 km. How much fuel is needed for 250 km?", opts:['15 L', '16 L', '17.5 L', '18 L', '20 L'], a:2},
+  {q:"Convert 4800 g into kilograms.", opts:['4.2 kg', '4.5 kg', '4.8 kg', '5.0 kg', '5.2 kg'], a:2},
+  {q:"A shop sells 180 items. 20% are returned. How many are not returned?", opts:['140', '144', '148', '152', '156'], a:1},
+  {q:"What is the volume of a cube with side 6 cm?", opts:['180 cm³', '200 cm³', '216 cm³', '240 cm³', '256 cm³'], a:2},
+  {q:"Simplify 18/24.", opts:['2/3', '3/4', '4/5', '5/6', '6/7'], a:1},
+  {q:"A train leaves at 13:20 and arrives at 15:05. How long is the journey?", opts:['95 min', '100 min', '105 min', '110 min', '115 min'], a:2},
+  {q:"What is 40% of 175?", opts:['60', '65', '70', '75', '80'], a:2},
+  {q:"A recipe needs 350 g of flour for 7 cakes. How much for 10 cakes?", opts:['450 g', '480 g', '500 g', '520 g', '550 g'], a:2},
+  {q:"The circumference of a circle is approximately 25 cm. The radius is closest to:", opts:['3 cm', '4 cm', '5 cm', '6 cm', '7 cm'], a:1},
+  {q:"What is 9.6 ÷ 1.2?", opts:['7', '7.5', '8', '8.5', '9'], a:2},
+  {q:"A school has 420 pupils. 3/7 are boys. How many are girls?", opts:['180', '200', '240', '260', '280'], a:2},
+  {q:"What is the next number: 4, 9, 19, 39, ?", opts:['59', '69', '79', '89', '99'], a:2},
+  {q:"A bag costs £36 after a 25% discount. What was the original price?", opts:['£44', '£46', '£48', '£50', '£52'], a:2},
+  {q:"How many centimetres are in 2.7 metres?", opts:['250', '260', '270', '280', '290'], a:2},
+  {q:"A rectangle has area 108 cm² and length 9 cm. What is the width?", opts:['10 cm', '11 cm', '12 cm', '13 cm', '14 cm'], a:2},
+  {q:"What is 1/6 + 1/3 + 1/4?", opts:['3/4', '5/6', '11/12', '1', '13/12'], a:0},
+  {q:"A bus travels at 50 km/h for 2 hours 24 minutes. How far does it travel?", opts:['100 km', '110 km', '120 km', '130 km', '140 km'], a:2}
+];
+
+const englishQ = [
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>Where has Mara lived for as long as she can remember?", opts:['In the mountains', 'By the sea', 'In a city', 'In a forest', 'By a river'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What does Mara do every morning?", opts:['Goes fishing', 'Walks the same path along the cliffs', 'Reads books', 'Helps her grandfather', 'Swims in the sea'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did Mara find on the rocks?", opts:['A key', 'An old bottle', 'A map', 'A coin', 'A letter'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How was the paper inside the bottle sealed?", opts:['With string', 'With red wax', 'With glue', 'With a ribbon', 'With tape'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did the message say she must do?", opts:['Sail a boat', 'Find the hidden cove before the next full moon', 'Climb the lighthouse', 'Tell her family', 'Wait for the tide'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>Who had told Mara stories of a hidden cove?", opts:['Her mother', 'Her grandfather', 'Her teacher', 'A fisherman', 'Her friend'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did Mara do that evening?", opts:['Told her family', 'Packed a small bag and set out', 'Went to bed', 'Called for help', 'Stayed home'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did she pack in her bag?", opts:['Books and a coat', 'Bread, water and a torch', 'A map and a compass', 'Food and a blanket', 'Nothing'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>When did she set out?", opts:['At dawn', 'As the sun began to set', 'At midnight', 'In the morning', 'At noon'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What happened to the path as she walked?", opts:['It became wider', 'It grew narrower', 'It disappeared', 'It turned to sand', 'It led inland'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How long did she walk before she saw the gap?", opts:['Ten minutes', 'Nearly an hour', 'Two hours', 'All night', 'A few minutes'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How did she enter the cove?", opts:['By boat', 'She squeezed through a narrow gap', 'She climbed down', 'She swam', 'She jumped'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What was the water like in the cove?", opts:['Rough', 'Still', 'Deep and dark', 'Frozen', 'Muddy'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What stood in the centre of the cove?", opts:['A tree', 'A single smooth stone', 'A boat', 'A lighthouse', 'A cave'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What was carved on the stone?", opts:['A name', 'A picture of a boat and a star', 'A map', 'A message', 'A fish'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did Mara do when she reached the stone?", opts:['Left immediately', 'Sat down and waited', 'Climbed on it', 'Threw it into the sea', 'Called for help'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What is Mara wondering at the end?", opts:['How to get home', 'What the sea’s secret might be', 'Whether to tell someone', 'What to eat', 'When the tide will come in'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How is the bottle described?", opts:['New and shiny', 'Old and washed up', 'Broken', 'Empty', 'Large'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What colour is the wax?", opts:['Blue', 'Red', 'Green', 'Black', 'White'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How is the ink described?", opts:['Bright', 'Faded', 'Wet', 'Smudged', 'Gold'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What did Mara’s heart do when she read the message?", opts:['Stopped', 'Beat faster', 'Became calm', 'Hurt', 'Skipped a beat'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>Did Mara believe the stories before finding the bottle?", opts:['Yes, always', 'No, she had never believed them', 'Sometimes', 'Only at night', 'Only when her grandfather told them'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What grew louder as she walked?", opts:['The wind', 'The waves below', 'Her footsteps', 'Birds', 'Thunder'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What time of day is it when she sets out?", opts:['Morning', 'Sunset', 'Night', 'Afternoon', 'Dawn'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What is the cove like?", opts:['Busy', 'Small and quiet', 'Large and open', 'Dangerous', 'Crowded'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What does Mara hope the sea will do?", opts:['Give her a boat', 'Share its secret with her', 'Take her home', 'Show her the way', 'Calm the waves'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>Who does Mara tell about the bottle that evening?", opts:['Her grandfather', 'No one', 'Her mother', 'A friend', 'A fisherman'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What is carved on the stone?", opts:['Words', 'A picture of a boat and a star', 'A map', 'A name', 'A fish'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>How does Mara feel as she waits?", opts:['Afraid', 'Wondering', 'Angry', 'Tired', 'Bored'], a:1},
+  {q:"<div style='background:#f9fafb;padding:14px;border-radius:8px;margin-bottom:16px;font-style:italic;line-height:1.7'>Mara had lived by the sea for as long as she could remember. Every morning she walked the same path along the cliffs, watching the fishing boats leave the harbour. One day she found an old bottle washed up on the rocks. Inside was a tightly rolled piece of paper, sealed with red wax. She carefully opened it and read the words written in faded ink: 'If you can find the hidden cove before the next full moon, the sea will share its secret with you.' Mara looked out at the water, her heart beating faster. She had heard stories of a hidden cove from her grandfather, but she had never believed them. That evening she told no one. Instead she packed a small bag with bread, water and a torch, and set out along the cliff path as the sun began to set. The path grew narrower and the waves below grew louder. After nearly an hour she saw a narrow gap in the rocks. She squeezed through and found herself in a small, quiet cove. The water was still, and in the centre of the cove stood a single smooth stone. On the stone was carved a simple picture of a boat and a star. Mara sat down and waited, wondering what the sea’s secret might be.</div><br>What is the main setting of the story?", opts:['A city', 'The cliffs and a hidden cove by the sea', 'A forest', 'A lighthouse', 'A harbour'], a:1}
+];
+
+const vrQ = [
+  {q:"Which is a synonym of 'benevolent'?", opts:['cruel', 'kind', 'angry', 'quick', 'weak'], a:1},
+  {q:"Which is a synonym of 'ephemeral'?", opts:['lasting', 'temporary', 'strong', 'weak', 'loud'], a:1},
+  {q:"Which is a synonym of 'scarce'?", opts:['rare', 'abundant', 'many', 'rich', 'full'], a:0},
+  {q:"Which is a synonym of 'ancient'?", opts:['new', 'old', 'modern', 'young', 'fresh'], a:1},
+  {q:"Which is a synonym of 'rapid'?", opts:['slow', 'fast', 'weak', 'loud', 'soft'], a:1},
+  {q:"Which is a synonym of 'reluctant'?", opts:['eager', 'unwilling', 'quick', 'happy', 'loud'], a:1},
+  {q:"Which is a synonym of 'abundant'?", opts:['scarce', 'plentiful', 'few', 'little', 'none'], a:1},
+  {q:"Which is a synonym of 'courageous'?", opts:['brave', 'cowardly', 'weak', 'afraid', 'timid'], a:0},
+  {q:"Which is a synonym of 'precise'?", opts:['vague', 'exact', 'rough', 'loose', 'unclear'], a:1},
+  {q:"Which is a synonym of 'tranquil'?", opts:['noisy', 'calm', 'busy', 'angry', 'loud'], a:1},
+  {q:"Which is an antonym of 'benevolent'?", opts:['kind', 'cruel', 'gentle', 'friendly', 'generous'], a:1},
+  {q:"Which is an antonym of 'ephemeral'?", opts:['temporary', 'lasting', 'brief', 'short', 'fleeting'], a:1},
+  {q:"Which is an antonym of 'scarce'?", opts:['rare', 'abundant', 'few', 'little', 'limited'], a:1},
+  {q:"Which is an antonym of 'ancient'?", opts:['old', 'modern', 'historic', 'aged', 'antique'], a:1},
+  {q:"Which is an antonym of 'rapid'?", opts:['fast', 'slow', 'quick', 'swift', 'speedy'], a:1},
+  {q:"Which is an antonym of 'reluctant'?", opts:['unwilling', 'eager', 'hesitant', 'doubtful', 'unwilling'], a:1},
+  {q:"Which is an antonym of 'abundant'?", opts:['plentiful', 'scarce', 'many', 'rich', 'full'], a:1},
+  {q:"Which is an antonym of 'courageous'?", opts:['brave', 'cowardly', 'bold', 'fearless', 'daring'], a:1},
+  {q:"Which is an antonym of 'precise'?", opts:['exact', 'vague', 'accurate', 'careful', 'detailed'], a:1},
+  {q:"Which is an antonym of 'tranquil'?", opts:['calm', 'noisy', 'peaceful', 'quiet', 'still'], a:1},
+  {q:"BOOK is to READ as FORK is to:", opts:['eat', 'knife', 'plate', 'food', 'cut'], a:0},
+  {q:"HAND is to GLOVE as FOOT is to:", opts:['shoe', 'hat', 'scarf', 'belt', 'ring'], a:0},
+  {q:"Move a letter: STONE &nbsp;&nbsp; AGE", opts:['S', 'T', 'O', 'N', 'E'], a:2},
+  {q:"Which word does not belong: apple, banana, carrot, grape, orange", opts:['apple', 'banana', 'carrot', 'grape', 'orange'], a:2},
+  {q:"Identify the connection: violin, cello, harp", opts:['piano', 'drum', 'flute', 'guitar', 'trumpet'], a:0},
+  {q:"Complete: 2, 6, 18, 54, ?", opts:['108', '162', '216', '270', '324'], a:1},
+  {q:"CAT is to KITTEN as DOG is to:", opts:['puppy', 'bark', 'bone', 'leash', 'kennel'], a:0},
+  {q:"Move two letters: ORANGE &nbsp;&nbsp; TILT", opts:['OA', 'RE', 'OE', 'AE', 'OG'], a:2},
+  {q:"Which is the odd one out: circle, square, triangle, rectangle, sphere", opts:['circle', 'square', 'triangle', 'rectangle', 'sphere'], a:4},
+  {q:"HOT is to COLD as DAY is to:", opts:['night', 'sun', 'moon', 'light', 'dark'], a:0}
+];
+
+const nvrQ = [
+  {q:"Which shape comes next: △ ○ △ ○ ?", opts:['△', '○', '□', '◇', '△○'], a:0},
+  {q:"How many small cubes are in a 3×3×3 cube?", opts:['18', '24', '27', '30', '36'], a:2},
+  {q:"Which figure is a rotation of the first?<br><svg width='40' height='40'><polygon points='5,5 35,5 20,35' fill='#93c5fd'/></svg>", opts:['same', 'rotated 90', 'rotated 180', 'flipped', 'none'], a:1},
+  {q:"Find the missing shape in the sequence.", opts:['square', 'circle', 'triangle', 'star', 'hexagon'], a:0},
+  {q:"Which shape is the odd one out?", opts:['circle', 'square', 'triangle', 'circle', 'all same'], a:1},
+  {q:"A large square is divided into 4 smaller equal squares. How many squares are there in total?", opts:['4', '5', '6', '7', '8'], a:1},
+  {q:"Which shape cannot be folded into a cube?", opts:['cross', 'zigzag of 6', '2×3 rectangle', 'row of 4 + 2', 'L of 6'], a:2},
+  {q:"Which comes next: ○ □ ○ □ ○ ?", opts:['○', '□', '△', '◇', '•'], a:1},
+  {q:"How many faces does a triangular prism have?", opts:['4', '5', '6', '7', '8'], a:1},
+  {q:"Which is a reflection of the first shape?", opts:['same', 'flipped horizontally', 'rotated 90', 'rotated 180', 'none'], a:1},
+  {q:"Complete the pattern: △ △ ○ △ △ ?", opts:['○', '△', '□', '◇', '●'], a:0},
+  {q:"A shape has 6 sides. What is it called?", opts:['triangle', 'square', 'pentagon', 'hexagon', 'octagon'], a:3},
+  {q:"Which figure has the fewest sides?", opts:['triangle', 'square', 'pentagon', 'hexagon', 'circle'], a:0},
+  {q:"How many edges does a triangular pyramid have?", opts:['4', '6', '8', '10', '12'], a:1},
+  {q:"Which shape is not a polygon?", opts:['square', 'rectangle', 'triangle', 'circle', 'hexagon'], a:3},
+  {q:"A pattern increases by 3 sides each time: 3, 6, 9, ?", opts:['10', '12', '14', '15', '16'], a:1},
+  {q:"Which is the odd one out: cube, cuboid, sphere, cylinder, pyramid", opts:['cube', 'cuboid', 'sphere', 'cylinder', 'pyramid'], a:2},
+  {q:"How many vertices does a square pyramid have?", opts:['4', '5', '6', '7', '8'], a:1},
+  {q:"Which shape can slide but not roll?", opts:['sphere', 'cube', 'cone', 'cylinder', 'pyramid'], a:1},
+  {q:"Complete: □ ○ △ □ ○ ?", opts:['△', '□', '○', '◇', '●'], a:0},
+  {q:"A net of a cube has how many squares?", opts:['4', '5', '6', '7', '8'], a:2},
+  {q:"Which is a rotation of a circle?", opts:['still a circle', 'becomes a triangle', 'becomes a square', 'becomes an oval', 'none'], a:0},
+  {q:"How many triangles are in a large triangle divided into 4 smaller ones?", opts:['4', '5', '6', '7', '8'], a:1},
+  {q:"Which shape has no edges?", opts:['cube', 'sphere', 'pyramid', 'cylinder', 'cone'], a:1},
+  {q:"A pattern: 1 circle, 2 circles, 4 circles, ?", opts:['6', '8', '10', '12', '16'], a:1},
+  {q:"Which is the odd one out: triangle, square, pentagon, hexagon, circle", opts:['triangle', 'square', 'pentagon', 'hexagon', 'circle'], a:4},
+  {q:"How many faces does a cone have?", opts:['1', '2', '3', '4', '5'], a:1},
+  {q:"Which shape is symmetric?", opts:['scalene triangle', 'equilateral triangle', 'irregular quadrilateral', 'none', 'all'], a:1},
+  {q:"Complete the sequence: ○ △ □ ○ △ ?", opts:['□', '○', '△', '◇', '●'], a:0},
+  {q:"A cube is cut into 27 smaller cubes. How many have no faces painted?", opts:['1', '2', '3', '4', '5'], a:0}
+];
+
+function login() {
+  const u = document.getElementById('username').value.trim();
+  const p = document.getElementById('password').value.trim();
+  const students = JSON.parse(localStorage.getItem('students7') || '{}');
+  // Force seed on login attempt
+  try { let s = JSON.parse(localStorage.getItem('students7') || '{}'); Object.assign(s, {"demo1":"demo1","demo2":"demo2","demo3":"demo3","zihao":"zihao","ignata":"ignata","xiran":"xiran","elaineli":"elaineli","student":"student","test":"test"}); localStorage.setItem('students7', JSON.stringify(s)); } catch(e){}
+  const studentsFresh = JSON.parse(localStorage.getItem('students7') || '{}');
+  if ((u.toLowerCase() === "moonzhu" && (p === "moon2026@" || p === "moonprep")) || (studentsFresh[u] && studentsFresh[u] === p) || (studentsFresh[u.toLowerCase()] && studentsFresh[u.toLowerCase()] === p)) {
+    currentUser = u;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('homeScreen').classList.remove('hidden');
+    document.getElementById('userInfo').classList.remove('hidden');
+    document.getElementById('userName').textContent = u;
+    if (u === ADMIN.user) {
+      document.getElementById('adminPanel').classList.remove('hidden');
+      showStudentList();
+    }
+    document.getElementById('loginError').textContent = '';
+  } else {
+    document.getElementById('loginError').textContent = 'Invalid. Admin: moonzhu / moon2026@';
+  }
+}
+
+function logout() {
+  currentUser = null;
+  document.getElementById('homeScreen').classList.add('hidden');
+  document.getElementById('testScreen').classList.add('hidden');
+  document.getElementById('reviewScreen').classList.add('hidden');
+  document.getElementById('leaderboardScreen').classList.add('hidden');
+  document.getElementById('userInfo').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('username').value = '';
+  document.getElementById('password').value = '';
+}
+
+function createStudent() {
+  const u = document.getElementById('newUser').value.trim();
+  const p = document.getElementById('newPass').value;
+  if (!u || !p) return;
+  const students = JSON.parse(localStorage.getItem('students7') || '{}');
+  students[u] = p;
+  localStorage.setItem('students7', JSON.stringify(students));
+  document.getElementById('newUser').value = '';
+  document.getElementById('newPass').value = '';
+  showStudentList();
+  alert('Account created');
+}
+
+function showStudentList() {
+  const students = JSON.parse(localStorage.getItem('students7') || '{}');
+  const list = Object.keys(students).map(u => u + ' / ' + students[u]).join('<br>');
+  document.getElementById('studentList').innerHTML = list || 'None';
+}
+
+function showAdmin() {
+  document.getElementById('homeScreen').classList.remove('hidden');
+  document.getElementById('testScreen').classList.add('hidden');
+  document.getElementById('reviewScreen').classList.add('hidden');
+  document.getElementById('leaderboardScreen').classList.add('hidden');
+  document.getElementById('adminPanel').classList.remove('hidden');
+  showStudentList();
+}
+
+function startTest(subject) {
+  currentTest = subject;
+  currentQ = 0;
+  answers = new Array(30).fill(null);
+  timeLeft = 900;
+  document.getElementById('homeScreen').classList.add('hidden');
+  document.getElementById('testScreen').classList.remove('hidden');
+  document.getElementById('subjectTitle').textContent = subject.charAt(0).toUpperCase() + subject.slice(1);
+  showQuestion();
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    const m = Math.floor(timeLeft / 60);
+    const s = timeLeft % 60;
+    document.getElementById('timer').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    if (timeLeft <= 0) finishTest();
+  }, 1000);
+}
+
+function getQuestions() {
+  if (currentTest === 'maths') return mathsQ;
+  if (currentTest === 'english') return englishQ;
+  if (currentTest === 'vr') return vrQ;
+  return nvrQ;
+}
+
+function showQuestion() {
+  const qs = getQuestions();
+  const q = qs[currentQ];
+  document.getElementById('qNum').textContent = currentQ + 1;
+  document.getElementById('progressBar').style.width = ((currentQ + 1) / 30 * 100) + '%';
+  document.getElementById('questionText').innerHTML = q.q;
+  const opts = document.getElementById('options');
+  opts.innerHTML = '';
+  q.opts.forEach((opt, i) => {
+    const div = document.createElement('div');
+    div.className = 'option' + (answers[currentQ] === i ? ' selected' : '');
+    if (opt.includes('<svg')) div.innerHTML = opt;
+    else div.textContent = opt;
+    div.onclick = () => { answers[currentQ] = i; showQuestion(); };
+    opts.appendChild(div);
+  });
+  document.getElementById('nextBtn').textContent = currentQ === 29 ? 'Finish' : 'Next';
+}
+
+function nextQuestion() {
+  if (currentQ < 29) {
+    currentQ++;
+    showQuestion();
+  } else {
+    finishTest();
+  }
+}
+
+function finishTest() {
+  clearInterval(timerInterval);
+  const qs = getQuestions();
+  let score = 0;
+  qs.forEach((q, i) => { if (answers[i] === q.a) score++; });
+  const scores = JSON.parse(localStorage.getItem('scores7') || '{}');
+  if (!scores[currentUser]) scores[currentUser] = {};
+  scores[currentUser][currentTest] = score;
+  localStorage.setItem('scores7', JSON.stringify(scores));
+  document.getElementById('testScreen').classList.add('hidden');
+  document.getElementById('reviewScreen').classList.remove('hidden');
+  document.getElementById('reviewTitle').textContent = currentTest.charAt(0).toUpperCase() + currentTest.slice(1) + ' Review';
+  document.getElementById('scoreDisplay').textContent = 'Score: ' + score + ' / 30';
+  let html = '<h3 style="margin-top:12px;color:#dc2626">Wrong answers</h3>';
+  let hasMistakes = false;
+  for (let i = 0; i < qs.length; i++) {
+    const q = qs[i];
+    if (!q) continue;
+    const isCorrect = answers[i] === q.a;
+    if (!isCorrect) {
+      hasMistakes = true;
+      let yourAnswer = 'none';
+      if (answers[i] !== null && answers[i] !== undefined && q.opts && q.opts[answers[i]]) {
+        yourAnswer = String(q.opts[answers[i]]).includes('<svg') ? '[shape]' : q.opts[answers[i]];
+      }
+      let correctAnswer = '—';
+      if (q.opts && q.opts[q.a]) {
+        correctAnswer = String(q.opts[q.a]).includes('<svg') ? '[shape]' : q.opts[q.a];
+      }
+      const questionText = (q.q || 'Question').split('<br>')[0].substring(0, 120);
+      html += '<div style="margin:10px 0;padding:10px;background:#fef2f2;border:1px solid #fca5a5;border-radius:6px">';
+      html += '<div><b>' + (i+1) + '.</b> ' + questionText + '</div>';
+      html += '<div style="color:#dc2626;margin-top:4px">Your answer: ' + yourAnswer + '</div>';
+      html += '<div style="color:#16a34a;margin-top:4px">Correct: ' + correctAnswer + '</div>';
+      html += '</div>';
+    }
+  }
+  if (!hasMistakes) html += '<p style="color:#16a34a">Perfect score — no mistakes!</p>';
+  document.getElementById('reviewContent').innerHTML = html;
+}
+
+function showLeaderboard() {
+  document.getElementById('homeScreen').classList.add('hidden');
+  document.getElementById('leaderboardScreen').classList.remove('hidden');
+  const scores = JSON.parse(localStorage.getItem('scores7') || '{}');
+  const tbody = document.querySelector('#leaderboardTable tbody');
+  tbody.innerHTML = '';
+  const rows = Object.keys(scores).map(u => {
+    const s = scores[u];
+    const total = (s.maths||0) + (s.english||0) + (s.vr||0) + (s.nvr||0);
+    return {u, maths:s.maths||'-', english:s.english||'-', vr:s.vr||'-', nvr:s.nvr||'-', total};
+  }).sort((a,b) => b.total - a.total);
+  rows.forEach((r, i) => {
+    tbody.innerHTML += '<tr><td>' + (i+1) + '</td><td>' + r.u + '</td><td>' + r.maths + '</td><td>' + r.english + '</td><td>' + r.vr + '</td><td>' + r.nvr + '</td><td>' + r.total + '</td></tr>';
+  });
+}
+
+function goHome() {
+  document.getElementById('reviewScreen').classList.add('hidden');
+  document.getElementById('leaderboardScreen').classList.add('hidden');
+  document.getElementById('homeScreen').classList.remove('hidden');
+}
+</script>
+</body>
+</html>
